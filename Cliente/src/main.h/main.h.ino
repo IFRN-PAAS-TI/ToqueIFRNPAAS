@@ -11,7 +11,7 @@
 unsigned int localPort = 8888;
 
 //servidor ntp padrao
-char timeServer[] = "10.94.0.155";
+char timeServer[] = "a.ntp.br";
 
 //A hora no NTP vem nos primeiros 48bytes da mensagem 
 const int NTP_PACKET_SIZE = 48;
