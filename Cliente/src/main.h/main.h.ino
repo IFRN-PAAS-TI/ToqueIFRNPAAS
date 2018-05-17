@@ -7,6 +7,10 @@
 
 
 // ------------ CONFIGURACOES NTP ------------------
+
+//GMT do Brasil (-3)
+short gmt = -3;
+
 //porta padrao do ntp
 unsigned int localPort = 8888;
 
@@ -22,6 +26,7 @@ byte packetBuffer[ NTP_PACKET_SIZE];
 //Uma instancia UDP permitirá a comunicação utilizando este protocolo
 EthernetUDP Udp;
 
+
 // ------------- FIM DAS CONFIGURACOES NTP ----------
 
 
@@ -29,15 +34,33 @@ EthernetUDP Udp;
 
 DS3231  rtc(SDA, SCL);              //Criação do objeto do tipo DS3231
 
+//um struct para ajudar na obtencao das horas
+struct Tempo {
+  uint8_t   hour;
+  uint8_t   min;
+};
+
+//Um objeto de hora para ajudar nas comparacoes
+Tempo horaAux = {0, 0};
+
+//Numero de horarios
+const unsigned short int tamH = 18;
+
+//Lista de Horarios Padrao
+Tempo horarios[tamH];
+
 // ------------- FIM DAS CONFIGURACOES DO RTC -------
 
-//porta digital onde o shield de relogio esta ligado
-int relogio = 13;
+//porta digital onde o relay esta ligado
+int relay = 2;
 
 void setup() {
   //inicializar seiral - ATENÇÃO - Se a serial não se conectar o Arduino entrara
   //em loop nesta fase
   init_serial();
+
+  //inicializar porta da sineta
+  init_relay();
 
   //inicializar relogio RTC
   init_clock();
@@ -46,14 +69,42 @@ void setup() {
   init_network();
 
   //obter hora via ntp
-  obtain_current_time();
+  obtain_current_time(); 
 
-  
-  
+  //inicializar toques padrao
+  init_toque_array();
+
+  Serial.println("Configuracao inicial finalizada.");
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
+
+  Serial.println("Verificando se a hora atual eh uma hora de toque.");
+  Serial.print("Hora atual: ");
+  Serial.println(rtc.getTimeStr());
+
+  horaAux = {rtc.getTime().hour, rtc.getTime().min};
+
+  for (unsigned short i = 0; i < tamH; i++) {
+    if ((horaAux.hour == horarios[i].hour && horaAux.min == horarios[i].min)) {
+      //tocar, mas...
+
+      Serial.println("Eh hora de tocar.");
+      //se os toques forem nas pausas, tocar durante 20s
+      if (horaAux.hour == 8 || horaAux.hour == 10 || 
+          horaAux.hour == 14 || horaAux.hour == 16) {
+        tocar(20);
+        Serial.println("Toque realizado, continuando.");
+      } else {
+        tocar(10);
+        Serial.println("Toque realizado, continuando.");
+      }
+    }
+  }
+  
+  Serial.println("Aguardando 60s.");
+  delay(60000);
 
 }
 
@@ -63,15 +114,12 @@ void init_network() {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
   if (Ethernet.begin(mac) == 0){
     Serial.println("Nao foi possivel obter um endereco IP via DHCP");
-    Serial.println("Nao irei fazer mais nada.");
-    while (true) {
-      ; //Nao ha porque continuar, deixando o arduino em loop
-    }
+    Serial.println("Continuando sem IP.");
+  } else {
+    //mostrar IP
+    Serial.print("IP = ");
+    Serial.println(Ethernet.localIP());
   }
-  
-  //mostrar IP
-  Serial.print("IP = ");
-  Serial.println(Ethernet.localIP());
 }
 
 //inicializa a comunicacao serial do arduino
@@ -126,7 +174,7 @@ void obtain_current_time() {
 
     // print the hour, minute and second:
     Serial.print("Seu UTC eh ");       // UTC is the time at Greenwich Meridian (GMT)
-    hours = (epoch  % 86400L) / 3600;
+    hours = ((epoch  % 86400L) / 3600) + gmt;
     Serial.print(hours); // print the hour (86400 equals secs per day)
     Serial.print(':');
     minutes = (epoch % 3600) / 60;
@@ -146,10 +194,14 @@ void obtain_current_time() {
     //Aplicar hora, minutos e segundos no shield de relogio
     rtc.setTime(hours, minutes, seconds);     // Set the time to 12:00:00 (24hr format)
     Serial.println(rtc.getTimeStr());
+  } else {
+    Serial.println("Não obti resposta NTP.");
+    Serial.print("Hora atual do relógio: ");
+    Serial.println(rtc.getTimeStr());
   }
 
   Ethernet.maintain();
-  Serial.println("Não obti resposta NTP, finalizando.");
+  
 }
 
 //envia um pacote UDP para o servidor address, anota a resposta no objeto Udp
@@ -179,5 +231,96 @@ void init_clock() {
   rtc.begin();   //Configurando valores iniciais do RTC
   Serial.println("Relogio inicializado.");
 }
+
+void init_toque_array() {
+  Serial.println("Inicializando conjunto de horarios padrao.");
+  
+  //07:00
+  horaAux = {7 , 0};
+  horarios[0] = horaAux;
+  
+  //07:45
+  horaAux = {7 , 45};
+  horarios[1] = horaAux;
+
+  //08:30
+  horaAux = {8, 30};
+  horarios[2] = horaAux;
+
+  //08:50
+  horaAux = {8, 50};
+  horarios[3] = horaAux;
+
+  //09:35
+  horaAux = {9, 35};
+  horarios[4] = horaAux;
+
+  //10:20
+  horaAux = {10, 20};
+  horarios[5] = horaAux;
+
+  //10:30
+  horaAux = {10, 30};
+  horarios[6] = horaAux;
+
+  //11:15
+  horaAux = {11, 15};
+  horarios[7] = horaAux;
+
+  //12:00
+  horaAux = {12, 0};
+  horarios[8] = horaAux;
+
+  //13:00
+  horaAux = {13, 0};
+  horarios[9] = horaAux;
+  
+  //13:45
+  horaAux = {13, 45};
+  horarios[10] = horaAux;
+
+  //14:30
+  horaAux = {14, 30};
+  horarios[11] = horaAux;
+
+  //14:50
+  horaAux = {14, 50};
+  horarios[12] = horaAux;
+
+  //15:35
+  horaAux = {15, 35};
+  horarios[13] = horaAux;
+
+  //16:20
+  horaAux = {16, 20};
+  horarios[14] = horaAux;
+
+  //16:30
+  horaAux = {16, 30};
+  horarios[15] = horaAux;
+
+  //17:15
+  horaAux = {17, 15};
+  horarios[16] = horaAux;
+
+  //18:00
+  horaAux = {18, 0};
+  horarios[17] = horaAux;
+
+  Serial.println("Conjunto de horarios padrao inicializado.");
+}
+
+void tocar(int segundos) {
+  digitalWrite(relay, HIGH);
+  delay(segundos*1000);
+  digitalWrite(relay, LOW);
+}
+
+void init_relay() {
+  Serial.println("Inicializando porta da sineta.");
+  digitalWrite(relay, LOW);
+  pinMode(relay, OUTPUT);
+}
+
 
 
