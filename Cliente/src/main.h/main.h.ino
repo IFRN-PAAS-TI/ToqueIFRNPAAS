@@ -87,7 +87,7 @@ void loop() {
   horaAux = {rtc.getTime().hour, rtc.getTime().min};
 
   for (unsigned short i = 0; i < tamH; i++) {
-    if ((horaAux.hour == horarios[i].hour && horaAux.min == horarios[i].min)) {
+    if (horaAux.hour == horarios[i].hour && horaAux.min == horarios[i].min) {
       //tocar, mas...
 
       Serial.println("Eh hora de tocar.");
@@ -125,9 +125,6 @@ void init_network() {
 //inicializa a comunicacao serial do arduino
 void init_serial() { 
   Serial.begin(9600);
-  while (!Serial) {
-    ; // wait for serial port to connect. Needed for native USB port only
-  }
 }
 
 
