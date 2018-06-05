@@ -2,8 +2,9 @@
 #include <SPI.h>         // needed for Arduino versions later than 0018
 #include <Ethernet.h>
 #include <EthernetUdp.h> // A comunicacao NTP e feita utilizando UDP
-//As duas bibliotecas necessárias para manipular o RTC DS3231
 #include <DS3231.h>      //Biblioteca para manipulação do DS3231
+//biblioteca necessária para executar o watchdog e reiniciar o arduino
+#include <avr/wdt.h> 
 
 
 // ------------ CONFIGURACOES NTP ------------------
@@ -35,16 +36,24 @@ EthernetUDP Udp;
 DS3231  rtc(SDA, SCL);              //Criação do objeto do tipo DS3231
 
 //um struct para ajudar na obtencao das horas
+
+const uint8_t TOQUE_NORMAL = 0;
+const uint8_t RESET = 1;
+
 struct Tempo {
   uint8_t   hour;
   uint8_t   min;
+  uint8_t   tempo_toque;
+  uint8_t   tempo_pausa;
+  uint8_t   repeticoes;
+  uint8_t   tipo;
 };
 
 //Um objeto de hora para ajudar nas comparacoes
 Tempo horaAux = {0, 0};
 
 //Numero de horarios
-const unsigned short int tamH = 18;
+const unsigned short int tamH = 19;
 
 //Lista de Horarios Padrao
 Tempo horarios[tamH];
@@ -55,8 +64,11 @@ Tempo horarios[tamH];
 int relay = 2;
 
 void setup() {
-  //inicializar seiral - ATENÇÃO - Se a serial não se conectar o Arduino entrara
-  //em loop nesta fase
+  
+  //preparar o arduino para, caso seja necessário, executar um RESET
+  init_reset();
+  
+  //inicializar serial
   init_serial();
 
   //inicializar porta da sineta
@@ -91,14 +103,15 @@ void loop() {
       //tocar, mas...
 
       Serial.println("Eh hora de tocar.");
-      //se os toques forem nas pausas, tocar durante 20s
-      if (horaAux.hour == 8 || horaAux.hour == 10 || 
-          horaAux.hour == 14 || horaAux.hour == 16) {
-        tocar(20);
-        Serial.println("Toque realizado, continuando.");
-      } else {
-        tocar(10);
-        Serial.println("Toque realizado, continuando.");
+      //se for a hora de resetar, fazê-lo
+      switch (horarios[i].tipo) {
+        case TOQUE_NORMAL:
+          tocar(&horarios[i]);
+        break;
+        case RESET:
+          //resetar
+          reset();
+        break;
       }
     }
   }
@@ -135,6 +148,8 @@ void obtain_current_time() {
   
   //enviar pacote udp pra servidor ntp
   Serial.println("Enviando requisicao NTP...");
+  Serial.print("Servidor configurado: ");
+  Serial.println(timeServer);
   sendNTPpacket(timeServer);
 
   // espere uma resposta chegar
@@ -231,78 +246,85 @@ void init_clock() {
 
 void init_toque_array() {
   Serial.println("Inicializando conjunto de horarios padrao.");
+
+  //FORMATO {HORA, MINUTO, TEMPO_DE_TOQUE, TEMPO_DE_PAUSA, 
+  //         NUMERO_DE_REPETICOES, TIPO}
   
   //07:00
-  horaAux = {7 , 0};
+  horaAux = {7 , 0, 10, 2, 1, TOQUE_NORMAL};
   horarios[0] = horaAux;
   
   //07:45
-  horaAux = {7 , 45};
+  horaAux = {7 , 45, 10, 2, 1, TOQUE_NORMAL};
   horarios[1] = horaAux;
 
   //08:30
-  horaAux = {8, 30};
+  horaAux = {8, 30, 20, 2, 1, TOQUE_NORMAL};
   horarios[2] = horaAux;
 
   //08:50
-  horaAux = {8, 50};
+  horaAux = {8, 50, 20, 2, 1, TOQUE_NORMAL};
   horarios[3] = horaAux;
 
   //09:35
-  horaAux = {9, 35};
+  horaAux = {9, 35, 10, 2, 1, TOQUE_NORMAL};
   horarios[4] = horaAux;
 
   //10:20
-  horaAux = {10, 20};
+  horaAux = {10, 20, 20, 2, 1, TOQUE_NORMAL};
   horarios[5] = horaAux;
 
   //10:30
-  horaAux = {10, 30};
+  horaAux = {10, 30, 20, 2, 1, TOQUE_NORMAL};
   horarios[6] = horaAux;
 
   //11:15
-  horaAux = {11, 15};
+  horaAux = {11, 15, 10, 2, 1, TOQUE_NORMAL};
   horarios[7] = horaAux;
 
   //12:00
-  horaAux = {12, 0};
+  horaAux = {12, 0, 10, 2, 1, TOQUE_NORMAL};
   horarios[8] = horaAux;
 
   //13:00
-  horaAux = {13, 0};
+  horaAux = {13, 0, 10, 2, 1, TOQUE_NORMAL};
   horarios[9] = horaAux;
   
   //13:45
-  horaAux = {13, 45};
+  horaAux = {13, 45, 10, 2, 1, TOQUE_NORMAL};
   horarios[10] = horaAux;
 
   //14:30
-  horaAux = {14, 30};
+  horaAux = {14, 30, 20, 2, 1, TOQUE_NORMAL};
   horarios[11] = horaAux;
 
   //14:50
-  horaAux = {14, 50};
+  horaAux = {14, 50, 20, 2, 1, TOQUE_NORMAL};
   horarios[12] = horaAux;
 
   //15:35
-  horaAux = {15, 35};
+  horaAux = {15, 35, 10, 2, 1, TOQUE_NORMAL};
   horarios[13] = horaAux;
 
   //16:20
-  horaAux = {16, 20};
+  horaAux = {16, 20, 20, 2, 1, TOQUE_NORMAL};
   horarios[14] = horaAux;
 
   //16:30
-  horaAux = {16, 30};
+  horaAux = {16, 30, 20, 2, 1, TOQUE_NORMAL};
   horarios[15] = horaAux;
 
   //17:15
-  horaAux = {17, 15};
+  horaAux = {17, 15, 10, 2, 1, TOQUE_NORMAL};
   horarios[16] = horaAux;
 
   //18:00
-  horaAux = {18, 0};
+  horaAux = {18, 0, 10, 2, 1, TOQUE_NORMAL};
   horarios[17] = horaAux;
+
+  //23:59 reiniciar arduino para evitar atrasos na hora
+  horaAux = {23, 59, 0, 0, 0, RESET};
+  horarios[18] = horaAux;
 
   Serial.println("Conjunto de horarios padrao inicializado.");
 }
@@ -313,10 +335,33 @@ void tocar(int segundos) {
   digitalWrite(relay, LOW);
 }
 
+void tocar(Tempo *t) {
+  for (uint8_t i = 0; i < (*t).repeticoes; i++) {
+    tocar((*t).tempo_toque);
+    delay((*t).tempo_pausa * 1000);
+  }
+}
+
 void init_relay() {
   Serial.println("Inicializando porta da sineta.");
   digitalWrite(relay, LOW);
   pinMode(relay, OUTPUT);
+}
+
+void init_reset() {
+  MCUSR = 0;  // clear out any flags of prior resets.  
+  wdt_disable(); //ensure watchdog is disabled
+}
+
+void reset() {
+  Serial.println("Um horario de RESET foi acionado.");
+  Serial.println("Reiniciando arduino.");
+  // reset the Arduino
+  // esperar 60s para que o arduino nao entre em loop de reset
+  delay(60000);
+  wdt_disable();
+  wdt_enable(WDTO_15MS);
+  while (true) {}
 }
 
 
