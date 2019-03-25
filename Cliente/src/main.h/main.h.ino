@@ -38,7 +38,7 @@ short gmt = -3;
 unsigned int localPort = 8888;
 
 //servidor ntp padrao
-char timeServer[] = "192.168.63.3";
+char timeServer[] = "a.ntp.br";
 
 //A hora no NTP vem nos primeiros 48bytes da mensagem 
 const int NTP_PACKET_SIZE = 48;
@@ -306,7 +306,7 @@ void init_toque_array() {
   //         NUMERO_DE_REPETICOES, TIPO}
   
   //07:00
-  horaAux = {17 , 1, 10, 2, 1, TOQUE_NORMAL};
+  horaAux = {7 , 0, 10, 2, 1, TOQUE_NORMAL};
   horarios[0] = horaAux;
   
   //07:45
