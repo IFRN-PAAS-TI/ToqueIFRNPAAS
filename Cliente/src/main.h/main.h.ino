@@ -6,6 +6,28 @@
 //biblioteca necessária para executar o watchdog e reiniciar o arduino
 #include <avr/wdt.h> 
 
+// ------------ CONSTANTES UTEIS ------------------
+
+const uint8_t RELAY_BAIXO = 0
+const uint8_t RELAY_ALTO = 1
+
+const uint8_t DEBUG_LV_DEACTIVATED = 0
+const uint8_t DEBUG_LV_1 = 1
+
+const uint8_t TOQUE_NORMAL = 0;
+const uint8_t RESET = 1;
+
+// ------------ NÍVEL DE DEBUG ------------------
+
+uint8_t debug = DEBUG_LV_DEACTIVATED;
+
+// ------------ INFORMAÇÕES RELAY ------------------
+
+uint8_t tipoRelay = RELAY_ALTO;
+
+//porta digital onde o relay esta ligado
+uint8_t relay = 2;
+
 
 // ------------ CONFIGURACOES NTP ------------------
 
@@ -37,9 +59,6 @@ DS3231  rtc(SDA, SCL);              //Criação do objeto do tipo DS3231
 
 //um struct para ajudar na obtencao das horas
 
-const uint8_t TOQUE_NORMAL = 0;
-const uint8_t RESET = 1;
-
 struct Tempo {
   uint8_t   hour;
   uint8_t   min;
@@ -59,9 +78,6 @@ const unsigned short int tamH = 19;
 Tempo horarios[tamH];
 
 // ------------- FIM DAS CONFIGURACOES DO RTC -------
-
-//porta digital onde o relay esta ligado
-int relay = 2;
 
 void setup() {
   
@@ -86,15 +102,19 @@ void setup() {
   //inicializar toques padrao
   init_toque_array();
 
-  Serial.println("Configuracao inicial finalizada.");
+  if (debug == DEBUG_LV_1) {
+    Serial.println("Configuracao inicial finalizada.");
+  }
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
 
-  Serial.println("Verificando se a hora atual eh uma hora de toque.");
-  Serial.print("Hora atual: ");
-  Serial.println(rtc.getTimeStr());
+  if (debug == DEBUG_LV_1) {
+    Serial.println("Verificando se a hora atual eh uma hora de toque.");
+    Serial.print("Hora atual: ");
+    Serial.println(rtc.getTimeStr());
+  }
 
   horaAux = {rtc.getTime().hour, rtc.getTime().min};
 
@@ -102,7 +122,9 @@ void loop() {
     if (horaAux.hour == horarios[i].hour && horaAux.min == horarios[i].min) {
       //tocar, mas...
 
-      Serial.println("Eh hora de tocar.");
+      if (debug == DEBUG_LV_1) {
+        Serial.println("Eh hora de tocar.");
+      }
       //se for a hora de resetar, fazê-lo
       switch (horarios[i].tipo) {
         case TOQUE_NORMAL:
@@ -115,8 +137,10 @@ void loop() {
       }
     }
   }
-  
-  Serial.println("Aguardando 60s.");
+
+  if (debug == DEBUG_LV_1) {
+    Serial.println("Aguardando 60s.");
+  }
   delay(60000);
 
 }
@@ -125,19 +149,27 @@ void loop() {
 void init_network() {
   byte mac[] = {  
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+
+  
   if (Ethernet.begin(mac) == 0){
-    Serial.println("Nao foi possivel obter um endereco IP via DHCP");
-    Serial.println("Continuando sem IP.");
+    if (debug == DEBUG_LV_1) {
+      Serial.println("Nao foi possivel obter um endereco IP via DHCP");
+      Serial.println("Continuando sem IP.");
+    }
   } else {
-    //mostrar IP
-    Serial.print("IP = ");
-    Serial.println(Ethernet.localIP());
+    if (debug == DEBUG_LV_1) {
+      //mostrar IP
+      Serial.print("IP = ");
+      Serial.println(Ethernet.localIP());
+    }
   }
 }
 
 //inicializa a comunicacao serial do arduino
 void init_serial() { 
-  Serial.begin(9600);
+  if (debug == DEBUG_LV_1) {
+    Serial.begin(9600);
+  }
 }
 
 
@@ -147,16 +179,21 @@ void obtain_current_time() {
   Udp.begin(localPort);
   
   //enviar pacote udp pra servidor ntp
-  Serial.println("Enviando requisicao NTP...");
-  Serial.print("Servidor configurado: ");
-  Serial.println(timeServer);
+  if (debug == DEBUG_LV_1) {
+    Serial.println("Enviando requisicao NTP...");
+    Serial.print("Servidor configurado: ");
+    Serial.println(timeServer);
+  }
   sendNTPpacket(timeServer);
 
   // espere uma resposta chegar
   delay(5000);
 
   if (Udp.parsePacket()) {
-    Serial.println("Resposta NTP obtida!");
+    if (debug == DEBUG_LV_1) {
+      Serial.println("Resposta NTP obtida!");
+    }
+    
     // We've received a packet, read the data from it
     Udp.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
 
@@ -168,48 +205,60 @@ void obtain_current_time() {
     // combine the four bytes (two words) into a long integer
     // this is NTP time (seconds since Jan 1 1900):
     unsigned long secsSince1900 = highWord << 16 | lowWord;
-    Serial.print("Quantidade de segundos desde 01/01/1900 = ");
-    Serial.println(secsSince1900);
+    if (debug == DEBUG_LV_1) {
+      Serial.print("Quantidade de segundos desde 01/01/1900 = ");
+      Serial.println(secsSince1900);
+    }
 
     // now convert NTP time into everyday time:
-    Serial.print("Hora Unix = ");
+    if (debug == DEBUG_LV_1) {
+      Serial.print("Hora Unix = ");
+    }
     // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
     const unsigned long seventyYears = 2208988800UL;
     // subtract seventy years:
     unsigned long epoch = secsSince1900 - seventyYears;
-    // print Unix time:
-    Serial.println(epoch);
+    if (debug == DEBUG_LV_1) {
+      // print Unix time:
+      Serial.println(epoch);
+    }
 
     unsigned long hours = 0;
     unsigned long minutes = 0;
     unsigned long seconds = 0;
 
-    // print the hour, minute and second:
-    Serial.print("Seu UTC eh ");       // UTC is the time at Greenwich Meridian (GMT)
-    hours = ((epoch  % 86400L) / 3600) + gmt;
-    Serial.print(hours); // print the hour (86400 equals secs per day)
-    Serial.print(':');
-    minutes = (epoch % 3600) / 60;
-    if (minutes < 10) {
-      // In the first 10 minutes of each hour, we'll want a leading '0'
-      Serial.print('0');
+    if (debug == DEBUG_LV_1) {
+      // print the hour, minute and second:
+      Serial.print("Seu UTC eh ");       // UTC is the time at Greenwich Meridian (GMT)
+      hours = ((epoch  % 86400L) / 3600) + gmt;
+      Serial.print(hours); // print the hour (86400 equals secs per day)
+      Serial.print(':');
+      minutes = (epoch % 3600) / 60;
+      if (minutes < 10) {
+        // In the first 10 minutes of each hour, we'll want a leading '0'
+        Serial.print('0');
+      }
+      Serial.print(minutes); // print the minute (3600 equals secs per minute)
+      Serial.print(':');
+      seconds = epoch % 60;
+      if (seconds < 10) {
+        // In the first 10 seconds of each minute, we'll want a leading '0'
+        Serial.print('0');
+      }
+      Serial.println(seconds); // print the second
     }
-    Serial.print(minutes); // print the minute (3600 equals secs per minute)
-    Serial.print(':');
-    seconds = epoch % 60;
-    if (seconds < 10) {
-      // In the first 10 seconds of each minute, we'll want a leading '0'
-      Serial.print('0');
-    }
-    Serial.println(seconds); // print the second
 
     //Aplicar hora, minutos e segundos no shield de relogio
     rtc.setTime(hours, minutes, seconds);     // Set the time to 12:00:00 (24hr format)
-    Serial.println(rtc.getTimeStr());
+    if (debug == DEBUG_LV_1) {
+      Serial.println(rtc.getTimeStr());
+    }
   } else {
-    Serial.println("Não obti resposta NTP.");
-    Serial.print("Hora atual do relógio: ");
-    Serial.println(rtc.getTimeStr());
+    if (debug == DEBUG_LV_1) {
+      Serial.println("Não obti resposta NTP.");
+      Serial.print("Hora atual do relógio: ");
+      Serial.println(rtc.getTimeStr());
+    }
   }
 
   Ethernet.maintain();
@@ -241,11 +290,15 @@ void sendNTPpacket(char* address) {
 
 void init_clock() {
   rtc.begin();   //Configurando valores iniciais do RTC
-  Serial.println("Relogio inicializado.");
+  if (debug == DEBUG_LV_1) {
+    Serial.println("Relogio inicializado.");
+  }
 }
 
 void init_toque_array() {
-  Serial.println("Inicializando conjunto de horarios padrao.");
+  if (debug == DEBUG_LV_1) {
+    Serial.println("Inicializando conjunto de horarios padrao.");
+  }
 
   //FORMATO {HORA, MINUTO, TEMPO_DE_TOQUE, TEMPO_DE_PAUSA, 
   //         NUMERO_DE_REPETICOES, TIPO}
@@ -326,7 +379,9 @@ void init_toque_array() {
   horaAux = {23, 59, 0, 0, 0, RESET};
   horarios[18] = horaAux;
 
-  Serial.println("Conjunto de horarios padrao inicializado.");
+  if (debug == DEBUG_LV_1) {
+    Serial.println("Conjunto de horarios padrao inicializado.");
+  }
 }
 
 void tocar(int segundos) {
@@ -343,7 +398,9 @@ void tocar(Tempo *t) {
 }
 
 void init_relay() {
-  Serial.println("Inicializando porta da sineta.");
+  if (debug == DEBUG_LV_1) {
+    Serial.println("Inicializando porta da sineta.");
+  }
   digitalWrite(relay, LOW);
   pinMode(relay, OUTPUT);
 }
@@ -354,8 +411,10 @@ void init_reset() {
 }
 
 void reset() {
-  Serial.println("Um horario de RESET foi acionado.");
-  Serial.println("Reiniciando arduino.");
+  if (debug == DEBUG_LV_1) {
+    Serial.println("Um horario de RESET foi acionado.");
+    Serial.println("Reiniciando arduino.");
+  }
   // reset the Arduino
   // esperar 60s para que o arduino nao entre em loop de reset
   delay(60000);
@@ -363,6 +422,3 @@ void reset() {
   wdt_enable(WDTO_15MS);
   while (true) {}
 }
-
-
-
