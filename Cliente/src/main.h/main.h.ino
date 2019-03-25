@@ -8,25 +8,25 @@
 
 // ------------ CONSTANTES UTEIS ------------------
 
-const uint8_t RELAY_BAIXO = 0
-const uint8_t RELAY_ALTO = 1
+const uint8_t RELAY_BAIXO = 0;
+const uint8_t RELAY_ALTO = 1;
 
-const uint8_t DEBUG_LV_DEACTIVATED = 0
-const uint8_t DEBUG_LV_1 = 1
+const uint8_t DEBUG_LV_DEACTIVATED = 0;
+const uint8_t DEBUG_LV_1 = 1;
 
 const uint8_t TOQUE_NORMAL = 0;
 const uint8_t RESET = 1;
 
 // ------------ NÍVEL DE DEBUG ------------------
 
-uint8_t debug = DEBUG_LV_DEACTIVATED;
+uint8_t debug = DEBUG_LV_1;
 
 // ------------ INFORMAÇÕES RELAY ------------------
 
 uint8_t tipoRelay = RELAY_ALTO;
 
 //porta digital onde o relay esta ligado
-uint8_t relay = 2;
+uint8_t relay = 7;
 
 
 // ------------ CONFIGURACOES NTP ------------------
@@ -38,7 +38,7 @@ short gmt = -3;
 unsigned int localPort = 8888;
 
 //servidor ntp padrao
-char timeServer[] = "a.ntp.br";
+char timeServer[] = "192.168.63.3";
 
 //A hora no NTP vem nos primeiros 48bytes da mensagem 
 const int NTP_PACKET_SIZE = 48;
@@ -304,7 +304,7 @@ void init_toque_array() {
   //         NUMERO_DE_REPETICOES, TIPO}
   
   //07:00
-  horaAux = {7 , 0, 10, 2, 1, TOQUE_NORMAL};
+  horaAux = {16 , 53, 10, 2, 1, TOQUE_NORMAL};
   horarios[0] = horaAux;
   
   //07:45
@@ -385,9 +385,17 @@ void init_toque_array() {
 }
 
 void tocar(int segundos) {
-  digitalWrite(relay, HIGH);
-  delay(segundos*1000);
-  digitalWrite(relay, LOW);
+  if (tipoRelay == RELAY_BAIXO) {
+    digitalWrite(relay, HIGH);
+    delay(segundos*1000);
+    digitalWrite(relay, LOW);
+  } else if (tipoRelay == RELAY_ALTO) {
+    digitalWrite(relay, LOW);
+    delay(segundos*1000);
+    digitalWrite(relay, HIGH);
+  }
+  
+  
 }
 
 void tocar(Tempo *t) {
@@ -401,8 +409,13 @@ void init_relay() {
   if (debug == DEBUG_LV_1) {
     Serial.println("Inicializando porta da sineta.");
   }
-  digitalWrite(relay, LOW);
-  pinMode(relay, OUTPUT);
+  if (tipoRelay == RELAY_BAIXO) {
+    digitalWrite(relay, LOW);
+    pinMode(relay, OUTPUT);
+  } else if (tipoRelay == RELAY_ALTO) {
+    digitalWrite(relay, HIGH);
+    pinMode(relay, OUTPUT);
+  }
 }
 
 void init_reset() {
