@@ -304,7 +304,7 @@ void init_toque_array() {
   //         NUMERO_DE_REPETICOES, TIPO}
   
   //07:00
-  horaAux = {16 , 53, 10, 2, 1, TOQUE_NORMAL};
+  horaAux = {7 , 0, 10, 2, 1, TOQUE_NORMAL};
   horarios[0] = horaAux;
   
   //07:45
