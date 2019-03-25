@@ -38,7 +38,7 @@ short gmt = -3;
 unsigned int localPort = 8888;
 
 //servidor ntp padrao
-char timeServer[] = "a.ntp.br";
+char timeServer[] = "192.168.63.3";
 
 //A hora no NTP vem nos primeiros 48bytes da mensagem 
 const int NTP_PACKET_SIZE = 48;
@@ -76,6 +76,9 @@ const unsigned short int tamH = 19;
 
 //Lista de Horarios Padrao
 Tempo horarios[tamH];
+
+//Variavel auxiliar para guardar o minuto atual
+uint8_t minutoAtual = 70;
 
 // ------------- FIM DAS CONFIGURACOES DO RTC -------
 
@@ -118,30 +121,29 @@ void loop() {
 
   horaAux = {rtc.getTime().hour, rtc.getTime().min};
 
-  for (unsigned short i = 0; i < tamH; i++) {
-    if (horaAux.hour == horarios[i].hour && horaAux.min == horarios[i].min) {
-      //tocar, mas...
-
-      if (debug == DEBUG_LV_1) {
-        Serial.println("Eh hora de tocar.");
-      }
-      //se for a hora de resetar, fazê-lo
-      switch (horarios[i].tipo) {
-        case TOQUE_NORMAL:
-          tocar(&horarios[i]);
-        break;
-        case RESET:
-          //resetar
-          reset();
-        break;
+    for (unsigned short i = 0; i < tamH; i++) {
+      if (horaAux.hour == horarios[i].hour && horaAux.min == horarios[i].min) {
+        //tocar, mas...
+  
+        if (debug == DEBUG_LV_1) {
+          Serial.println("Eh hora de tocar.");
+        }
+        //se for a hora de resetar, fazê-lo
+        switch (horarios[i].tipo) {
+          case TOQUE_NORMAL:
+            if (horaAux.min != minutoAtual) {
+              tocar(&horarios[i]);
+              minutoAtual = horaAux.min;
+            }
+          break;
+          case RESET:
+            //resetar
+            reset();
+          break;
+        }
       }
     }
-  }
-
-  if (debug == DEBUG_LV_1) {
-    Serial.println("Aguardando 60s.");
-  }
-  delay(60000);
+  
 
 }
 
@@ -304,7 +306,7 @@ void init_toque_array() {
   //         NUMERO_DE_REPETICOES, TIPO}
   
   //07:00
-  horaAux = {7 , 0, 10, 2, 1, TOQUE_NORMAL};
+  horaAux = {17 , 1, 10, 2, 1, TOQUE_NORMAL};
   horarios[0] = horaAux;
   
   //07:45
