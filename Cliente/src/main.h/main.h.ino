@@ -38,7 +38,7 @@ short gmt = -3;
 unsigned int localPort = 8888;
 
 //servidor ntp padrao
-char timeServer[] = "192.168.63.3";
+char timeServer[] = "a.ntp.br";
 
 //A hora no NTP vem nos primeiros 48bytes da mensagem 
 const int NTP_PACKET_SIZE = 48;
