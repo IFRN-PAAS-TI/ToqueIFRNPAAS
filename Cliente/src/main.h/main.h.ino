@@ -97,16 +97,15 @@ void loop() {
   Serial.println(rtc.getTimeStr());
 
   horaAux = {rtc.getTime().hour, rtc.getTime().min};
+  unsigned short minuto_toque = 60
 
   for (unsigned short i = 0; i < tamH; i++) {
-    if (horaAux.hour == horarios[i].hour && horaAux.min == horarios[i].min) {
-      //tocar, mas...
+    if (horaAux.hour == horarios[i].hour && horaAux.min == horarios[i].min && minuto_toque != horaAux.min) {
 
-      Serial.println("Eh hora de tocar.");
-      //se for a hora de resetar, fazê-lo
       switch (horarios[i].tipo) {
         case TOQUE_NORMAL:
           tocar(&horarios[i]);
+          minuto_toque = horaAux.min;
         break;
         case RESET:
           //resetar
@@ -115,10 +114,6 @@ void loop() {
       }
     }
   }
-  
-  Serial.println("Aguardando 60s.");
-  delay(60000);
-
 }
 
 //inicializa a rede do arduino utilizando DHCP
