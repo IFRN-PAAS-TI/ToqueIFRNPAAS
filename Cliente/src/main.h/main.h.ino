@@ -61,7 +61,12 @@ Tempo horarios[tamH];
 // ------------- FIM DAS CONFIGURACOES DO RTC -------
 
 //porta digital onde o relay esta ligado
-int relay = 2;
+int relay = 7;
+
+//Uma variavel auxiliar para que o arduino nao precise usar a funcao sleep
+// e acabe atrasando o toque pois essa funcao nao eh precisa
+unsigned short minuto_toque = 60;
+
 
 void setup() {
   
@@ -97,7 +102,6 @@ void loop() {
   Serial.println(rtc.getTimeStr());
 
   horaAux = {rtc.getTime().hour, rtc.getTime().min};
-  unsigned short minuto_toque = 60
 
   for (unsigned short i = 0; i < tamH; i++) {
     if (horaAux.hour == horarios[i].hour && horaAux.min == horarios[i].min && minuto_toque != horaAux.min) {
@@ -325,9 +329,9 @@ void init_toque_array() {
 }
 
 void tocar(int segundos) {
-  digitalWrite(relay, HIGH);
-  delay(segundos*1000);
   digitalWrite(relay, LOW);
+  delay(segundos*1000);
+  digitalWrite(relay, HIGH);
 }
 
 void tocar(Tempo *t) {
@@ -339,7 +343,7 @@ void tocar(Tempo *t) {
 
 void init_relay() {
   Serial.println("Inicializando porta da sineta.");
-  digitalWrite(relay, LOW);
+  digitalWrite(relay, HIGH);
   pinMode(relay, OUTPUT);
 }
 
