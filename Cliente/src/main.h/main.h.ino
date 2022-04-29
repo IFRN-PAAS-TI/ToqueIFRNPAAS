@@ -2,6 +2,8 @@
 #include <SPI.h>         // needed for Arduino versions later than 0018
 #include <Ethernet.h>
 #include <EthernetUdp.h> // A comunicacao NTP e feita utilizando UDP
+
+//
 #include <DS3231.h>      //Biblioteca para manipulação do DS3231
 //biblioteca necessária para executar o watchdog e reiniciar o arduino
 #include <avr/wdt.h> 
@@ -35,11 +37,10 @@ EthernetUDP Udp;
 
 DS3231  rtc(SDA, SCL);              //Criação do objeto do tipo DS3231
 
-//um struct para ajudar na obtencao das horas
-
+// tipos de toque
 const uint8_t TOQUE_NORMAL = 0;
-const uint8_t RESET = 1;
 
+//um struct para ajudar na obtencao das horas
 struct Tempo {
   uint8_t   hour;
   uint8_t   min;
@@ -69,10 +70,6 @@ unsigned short minuto_toque = 60;
 
 
 void setup() {
-  
-  //preparar o arduino para, caso seja necessário, executar um RESET
-  init_reset();
-  
   //inicializar serial
   init_serial();
 
@@ -97,7 +94,7 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
-  Serial.println("Verificando se a hora atual eh uma hora de toque.");
+  Serial.print("Verificando se a hora atual eh uma hora de toque. ");
   Serial.print("Hora atual: ");
   Serial.println(rtc.getTimeStr());
 
@@ -110,10 +107,6 @@ void loop() {
         case TOQUE_NORMAL:
           tocar(&horarios[i]);
           minuto_toque = horaAux.min;
-        break;
-        case RESET:
-          //resetar
-          reset();
         break;
       }
     }
@@ -203,7 +196,9 @@ void obtain_current_time() {
     Serial.println(seconds); // print the second
 
     //Aplicar hora, minutos e segundos no shield de relogio
+    Serial.println("Registrando hora no relógio."); 
     rtc.setTime(hours, minutes, seconds);     // Set the time to 12:00:00 (24hr format)
+    Serial.print("OK. Hora registrada: "); 
     Serial.println(rtc.getTimeStr());
   } else {
     Serial.println("Não obti resposta NTP.");
@@ -321,10 +316,6 @@ void init_toque_array() {
   horaAux = {18, 0, 10, 2, 1, TOQUE_NORMAL};
   horarios[17] = horaAux;
 
-  //23:59 reiniciar arduino para evitar atrasos na hora
-  horaAux = {23, 59, 0, 0, 0, RESET};
-  horarios[18] = horaAux;
-
   Serial.println("Conjunto de horarios padrao inicializado.");
 }
 
@@ -346,22 +337,3 @@ void init_relay() {
   digitalWrite(relay, HIGH);
   pinMode(relay, OUTPUT);
 }
-
-void init_reset() {
-  MCUSR = 0;  // clear out any flags of prior resets.  
-  wdt_disable(); //ensure watchdog is disabled
-}
-
-void reset() {
-  Serial.println("Um horario de RESET foi acionado.");
-  Serial.println("Reiniciando arduino.");
-  // reset the Arduino
-  // esperar 60s para que o arduino nao entre em loop de reset
-  delay(60000);
-  wdt_disable();
-  wdt_enable(WDTO_15MS);
-  while (true) {}
-}
-
-
-
